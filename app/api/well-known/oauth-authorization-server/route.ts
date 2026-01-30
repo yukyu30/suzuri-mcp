@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  // 本番環境では APP_URL を使用（VERCEL_URL はデプロイ固有のURL）
+  const baseUrl = process.env.APP_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   const metadata = {
     issuer: baseUrl,

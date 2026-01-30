@@ -37,9 +37,8 @@ export async function GET(request: NextRequest) {
   })
   const encodedState = Buffer.from(mcpState).toString('base64url')
 
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  const baseUrl = process.env.APP_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   const suzuriAuthUrl = new URL('https://suzuri.jp/oauth/authorize')
   suzuriAuthUrl.searchParams.set('client_id', suzuriClientId)

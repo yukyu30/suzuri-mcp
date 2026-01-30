@@ -50,9 +50,8 @@ export async function POST(request: NextRequest) {
   // SUZURIからトークンを取得
   const suzuriClientId = process.env.SUZURI_CLIENT_ID
   const suzuriClientSecret = process.env.SUZURI_CLIENT_SECRET
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  const baseUrl = process.env.APP_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   if (!suzuriClientId || !suzuriClientSecret) {
     return NextResponse.json(
