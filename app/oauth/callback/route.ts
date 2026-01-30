@@ -1,17 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
-
-// 認可コードを一時保存（本番環境ではRedis等を使用）
-const authorizationCodes = new Map<string, {
-  suzuriCode: string
-  clientId: string
-  redirectUri: string
-  codeChallenge?: string
-  codeChallengeMethod?: string
-  createdAt: number
-}>()
-
-export { authorizationCodes }
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -52,22 +39,10 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // 新しい認可コードを生成
-  const mcpCode = 'mcp_' + crypto.randomBytes(32).toString('hex')
-
-  // SUZURIの認可コードを保存
-  authorizationCodes.set(mcpCode, {
-    suzuriCode,
-    clientId: mcpState.clientId,
-    redirectUri: mcpState.redirectUri,
-    codeChallenge: mcpState.codeChallenge,
-    codeChallengeMethod: mcpState.codeChallengeMethod,
-    createdAt: Date.now(),
-  })
-
   // MCPクライアントにリダイレクト
+  // サーバーレス環境ではMapが共有されないため、SUZURIの認可コードを直接パススルー
   const redirectUrl = new URL(mcpState.redirectUri)
-  redirectUrl.searchParams.set('code', mcpCode)
+  redirectUrl.searchParams.set('code', suzuriCode)
   if (mcpState.originalState) {
     redirectUrl.searchParams.set('state', mcpState.originalState)
   }

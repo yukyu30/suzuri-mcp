@@ -1,19 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
-
-// コールバックからインポートできないため、同じMapを参照する方法を使う
-// 本番環境ではRedis等の共有ストレージを使用
-const authorizationCodes = new Map<string, {
-  suzuriCode: string
-  clientId: string
-  redirectUri: string
-  codeChallenge?: string
-  codeChallengeMethod?: string
-  createdAt: number
-}>()
-
-// グローバル参照用にエクスポート
-export { authorizationCodes as tokenAuthCodes }
 
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get('content-type') || ''
@@ -47,8 +32,6 @@ export async function POST(request: NextRequest) {
   const code = body.code
   const redirectUri = body.redirect_uri
   const clientId = body.client_id
-  const clientSecret = body.client_secret
-  const codeVerifier = body.code_verifier
 
   if (grantType !== 'authorization_code') {
     return NextResponse.json(
@@ -64,10 +47,6 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 認可コードを取得（グローバルMapから）
-  // 注意: Vercelのサーバーレス環境では、別のリクエストで設定されたMapは参照できない
-  // 本番環境ではKV/Redis等を使用する必要がある
-
   // SUZURIからトークンを取得
   const suzuriClientId = process.env.SUZURI_CLIENT_ID
   const suzuriClientSecret = process.env.SUZURI_CLIENT_SECRET
@@ -82,18 +61,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // MCPの認可コードからSUZURIの認可コードを抽出
-  // 注意: サーバーレス環境ではMapが共有されないため、
-  // codeがmcp_で始まる場合は、元のSUZURIコードを直接使う
-  let suzuriCode = code
-  if (code.startsWith('mcp_')) {
-    // 本番環境ではKV/Redisからsuzuriコードを取得
-    // ここでは簡易的にエラーを返す
-    return NextResponse.json(
-      { error: 'invalid_grant', error_description: 'Authorization code expired or invalid. Please try again.' },
-      { status: 400 }
-    )
-  }
+  // callbackからパススルーされたSUZURIの認可コードを使用
+  const suzuriCode = code
 
   try {
     const tokenParams = new URLSearchParams({
