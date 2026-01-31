@@ -12,6 +12,12 @@ type ToolContent = { type: 'text'; text: string }
 type ToolResponse = { content: ToolContent[]; isError?: boolean }
 type AuthContext = { authInfo?: { token?: string } }
 
+// 共通スキーマ
+const paginationSchema = {
+  limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
+  offset: z.number().int().min(0).optional().describe('オフセット'),
+}
+
 // レスポンス生成ヘルパー
 const createJsonResponse = <T>(data: T): ToolResponse => ({
   content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
@@ -52,6 +58,22 @@ const withAuthText = <TParams>(
   }
 }
 
+// 認証チェック付きハンドラ（検索して見つからない場合エラー）
+const withAuthFind = <TParams, TItem>(
+  fetcher: (client: SuzuriClient, params: TParams) => Promise<TItem[]>,
+  finder: (items: TItem[], params: TParams) => TItem | undefined,
+  notFoundMessage: string
+) => {
+  return async (params: TParams, { authInfo }: AuthContext): Promise<ToolResponse> => {
+    if (!authInfo?.token) return AUTH_ERROR_RESPONSE
+    const client = new SuzuriClient(authInfo.token)
+    const items = await fetcher(client, params)
+    const found = finder(items, params)
+    if (!found) return createErrorResponse(notFoundMessage)
+    return createJsonResponse(found)
+  }
+}
+
 // レスポンス軽量化用のヘルパー関数
 const toCompactProduct = (p: SuzuriProduct) => ({ id: p.id, title: p.title, price: p.price })
 const toCompactUser = (u: SuzuriUser) => ({ id: u.id, name: u.name, displayName: u.displayName })
@@ -65,10 +87,7 @@ const handler = createMcpHandler(
     server.tool(
       'get_items',
       'SUZURIで取り扱っているアイテム（商品カテゴリ）一覧を取得します（要認証）',
-      {
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
-      },
+      { ...paginationSchema },
       withAuth(async (client, { limit, offset }) => client.getItems({ limit, offset })),
     )
 
@@ -77,24 +96,21 @@ const handler = createMcpHandler(
       'get_products',
       'SUZURIの商品一覧を取得します（軽量版: id, title, priceのみ）（要認証）',
       {
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
+        ...paginationSchema,
         userId: z.number().int().optional().describe('ユーザーIDで絞り込み'),
         userName: z.string().optional().describe('ユーザー名で絞り込み'),
         itemId: z.number().int().optional().describe('アイテムIDで絞り込み'),
       },
       withAuth(async (client, params) => {
         const result = await client.getProducts(params)
-        return { products: result.products.map(toCompactProduct) }
+        return { items: result.products.map(toCompactProduct) }
       }),
     )
 
     server.tool(
       'get_product',
       'SUZURIの商品詳細を取得します（要認証）',
-      {
-        productId: z.number().int().describe('商品ID'),
-      },
+      { productId: z.number().int().describe('商品ID') },
       withAuth(async (client, { productId }) => client.getProduct(productId)),
     )
 
@@ -103,48 +119,39 @@ const handler = createMcpHandler(
       'SUZURIの商品を検索します（軽量版: id, title, priceのみ）（要認証）',
       {
         q: z.string().describe('検索キーワード'),
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
+        ...paginationSchema,
         itemId: z.number().int().optional().describe('アイテムIDで絞り込み'),
       },
       withAuth(async (client, params) => {
         const result = await client.searchProducts(params)
-        return { products: result.products.map(toCompactProduct) }
+        return { items: result.products.map(toCompactProduct) }
       }),
     )
 
     server.tool(
       'get_on_sale_products',
       'SUZURIのセール商品一覧を取得します（軽量版: id, title, priceのみ）（要認証）',
-      {
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
-      },
+      { ...paginationSchema },
       withAuth(async (client, params) => {
         const result = await client.getOnSaleProducts(params)
-        return { products: result.products.map(toCompactProduct) }
+        return { items: result.products.map(toCompactProduct) }
       }),
     )
 
     server.tool(
       'get_my_products',
       '認証ユーザーの商品一覧を取得します（軽量版: id, title, priceのみ）（要認証）',
-      {
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
-      },
+      { ...paginationSchema },
       withAuth(async (client, params) => {
         const result = await client.getProducts(params)
-        return { products: result.products.map(toCompactProduct) }
+        return { items: result.products.map(toCompactProduct) }
       }),
     )
 
     server.tool(
       'get_product_images',
       '商品の画像URL一覧を取得します（要認証）',
-      {
-        productId: z.number().int().describe('商品ID'),
-      },
+      { productId: z.number().int().describe('商品ID') },
       withAuth(async (client, { productId }) => {
         const product = await client.getProduct(productId)
         return {
@@ -162,21 +169,18 @@ const handler = createMcpHandler(
       'SUZURIのユーザー一覧を取得します（軽量版: id, name, displayNameのみ）（要認証）',
       {
         name: z.string().optional().describe('ユーザー名で検索'),
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
+        ...paginationSchema,
       },
       withAuth(async (client, params) => {
         const result = await client.getUsers(params)
-        return { users: result.users.map(toCompactUser) }
+        return { items: result.users.map(toCompactUser) }
       }),
     )
 
     server.tool(
       'get_user',
       'SUZURIのユーザー詳細を取得します（要認証）',
-      {
-        userId: z.number().int().describe('ユーザーID'),
-      },
+      { userId: z.number().int().describe('ユーザーID') },
       withAuth(async (client, { userId }) => client.getUser(userId)),
     )
 
@@ -192,43 +196,34 @@ const handler = createMcpHandler(
       'get_materials',
       'SUZURIの素材一覧を取得します（軽量版: id, titleのみ）（要認証）',
       {
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
+        ...paginationSchema,
         userId: z.number().int().optional().describe('ユーザーIDで絞り込み'),
       },
       withAuth(async (client, params) => {
         const result = await client.getMaterials(params)
-        return { materials: result.materials.map(toCompactMaterial) }
+        return { items: result.materials.map(toCompactMaterial) }
       }),
     )
 
     server.tool(
       'get_my_materials',
       '認証ユーザーの素材一覧を取得します（軽量版: id, titleのみ）（要認証）',
-      {
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
-      },
+      { ...paginationSchema },
       withAuth(async (client, params) => {
         const result = await client.getMaterials(params)
-        return { materials: result.materials.map(toCompactMaterial) }
+        return { items: result.materials.map(toCompactMaterial) }
       }),
     )
 
     server.tool(
       'get_material_detail',
       '素材の詳細情報を取得します（imageUrl, description含む）（要認証）',
-      {
-        materialId: z.number().int().describe('素材ID'),
-      },
-      async ({ materialId }, { authInfo }): Promise<ToolResponse> => {
-        if (!authInfo?.token) return AUTH_ERROR_RESPONSE
-        const client = new SuzuriClient(authInfo.token)
-        const result = await client.getMaterials({ limit: MAX_LIMIT })
-        const material = result.materials.find(m => m.id === materialId)
-        if (!material) return createErrorResponse('素材が見つかりません')
-        return createJsonResponse(material)
-      },
+      { materialId: z.number().int().describe('素材ID') },
+      withAuthFind(
+        async (client) => (await client.getMaterials({ limit: MAX_LIMIT })).materials,
+        (materials, { materialId }) => materials.find(m => m.id === materialId),
+        '素材が見つかりません'
+      ),
     )
 
     server.tool(
@@ -269,9 +264,7 @@ const handler = createMcpHandler(
     server.tool(
       'delete_material',
       '素材を削除します（要認証）',
-      {
-        materialId: z.number().int().describe('素材ID'),
-      },
+      { materialId: z.number().int().describe('素材ID') },
       withAuthText(async (client, { materialId }) => {
         await client.deleteMaterial(materialId)
         return '素材を削除しました'
@@ -284,12 +277,11 @@ const handler = createMcpHandler(
       '商品のお気に入り（ズッキュン）一覧を取得します（軽量版）（要認証）',
       {
         productId: z.number().int().describe('商品ID'),
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
+        ...paginationSchema,
       },
       withAuth(async (client, { productId, limit, offset }) => {
         const result = await client.getProductFavorites(productId, { limit, offset })
-        return { favorites: result.favorites.map(toCompactFavorite) }
+        return { items: result.favorites.map(toCompactFavorite) }
       }),
     )
 
@@ -298,12 +290,11 @@ const handler = createMcpHandler(
       'ユーザーのお気に入り（ズッキュン）一覧を取得します（軽量版）（要認証）',
       {
         userId: z.number().int().describe('ユーザーID'),
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
+        ...paginationSchema,
       },
       withAuth(async (client, { userId, limit, offset }) => {
         const result = await client.getUserFavorites(userId, { limit, offset })
-        return { favorites: result.favorites.map(toCompactFavorite) }
+        return { items: result.favorites.map(toCompactFavorite) }
       }),
     )
 
@@ -323,9 +314,7 @@ const handler = createMcpHandler(
     server.tool(
       'remove_favorite',
       '商品のお気に入り（ズッキュン）を削除します（要認証）',
-      {
-        productId: z.number().int().describe('商品ID'),
-      },
+      { productId: z.number().int().describe('商品ID') },
       withAuthText(async (client, { productId }) => {
         await client.removeFavorite(productId)
         return 'お気に入りを削除しました'
@@ -337,23 +326,20 @@ const handler = createMcpHandler(
       'get_choices',
       'SUZURIのオモイデ一覧を取得します（軽量版: id, titleのみ）（要認証）',
       {
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
+        ...paginationSchema,
         userId: z.number().int().optional().describe('ユーザーIDで絞り込み'),
         userName: z.string().optional().describe('ユーザー名で絞り込み'),
       },
       withAuth(async (client, params) => {
         const result = await client.getChoices(params)
-        return { choices: result.choices.map(toCompactChoice) }
+        return { items: result.choices.map(toCompactChoice) }
       }),
     )
 
     server.tool(
       'get_choice',
       'SUZURIのオモイデ詳細を取得します（要認証）',
-      {
-        choiceId: z.number().int().describe('オモイデID'),
-      },
+      { choiceId: z.number().int().describe('オモイデID') },
       withAuth(async (client, { choiceId }) => client.getChoice(choiceId)),
     )
 
@@ -362,12 +348,11 @@ const handler = createMcpHandler(
       'SUZURIのオモイデに含まれる商品一覧を取得します（軽量版: id, title, priceのみ）（要認証）',
       {
         choiceId: z.number().int().describe('オモイデID'),
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-        offset: z.number().int().min(0).optional().describe('オフセット'),
+        ...paginationSchema,
       },
       withAuth(async (client, { choiceId, limit, offset }) => {
         const result = await client.getChoiceProducts(choiceId, { limit, offset })
-        return { products: result.products.map(toCompactProduct) }
+        return { items: result.products.map(toCompactProduct) }
       }),
     )
 
@@ -423,9 +408,7 @@ const handler = createMcpHandler(
     server.tool(
       'delete_choice',
       'オモイデを削除します（要認証）',
-      {
-        choiceId: z.number().int().describe('オモイデID'),
-      },
+      { choiceId: z.number().int().describe('オモイデID') },
       withAuthText(async (client, { choiceId }) => {
         await client.deleteChoice(choiceId)
         return 'オモイデを削除しました'
@@ -436,9 +419,7 @@ const handler = createMcpHandler(
     server.tool(
       'get_activities',
       '認証ユーザーのアクティビティ一覧を取得します（要認証）',
-      {
-        limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
-      },
+      { limit: paginationSchema.limit },
       withAuth(async (client, params) => client.getActivities(params)),
     )
 
@@ -459,7 +440,7 @@ const handler = createMcpHandler(
 )
 
 const verifyToken = async (
-  req: Request,
+  _req: Request,
   bearerToken?: string
 ): Promise<AuthInfo | undefined> => {
   if (!bearerToken) return undefined
