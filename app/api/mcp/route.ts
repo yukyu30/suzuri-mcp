@@ -14,7 +14,7 @@ type AuthContext = { authInfo?: { token?: string } }
 
 // 共通スキーマ
 const paginationSchema = {
-  limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe('取得件数（1-100）'),
+  limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe(`取得件数（1-${MAX_LIMIT}）`),
   offset: z.number().int().min(0).optional().describe('オフセット'),
 }
 
@@ -55,22 +55,6 @@ const withAuthText = <TParams>(
     const client = new SuzuriClient(authInfo.token)
     const message = await handler(client, params)
     return createTextResponse(message)
-  }
-}
-
-// 認証チェック付きハンドラ（検索して見つからない場合エラー）
-const withAuthFind = <TParams, TItem>(
-  fetcher: (client: SuzuriClient, params: TParams) => Promise<TItem[]>,
-  finder: (items: TItem[], params: TParams) => TItem | undefined,
-  notFoundMessage: string
-) => {
-  return async (params: TParams, { authInfo }: AuthContext): Promise<ToolResponse> => {
-    if (!authInfo?.token) return AUTH_ERROR_RESPONSE
-    const client = new SuzuriClient(authInfo.token)
-    const items = await fetcher(client, params)
-    const found = finder(items, params)
-    if (!found) return createErrorResponse(notFoundMessage)
-    return createJsonResponse(found)
   }
 }
 
@@ -219,11 +203,7 @@ const handler = createMcpHandler(
       'get_material_detail',
       '素材の詳細情報を取得します（imageUrl, description含む）（要認証）',
       { materialId: z.number().int().describe('素材ID') },
-      withAuthFind(
-        async (client) => (await client.getMaterials({ limit: MAX_LIMIT })).materials,
-        (materials, { materialId }) => materials.find(m => m.id === materialId),
-        '素材が見つかりません'
-      ),
+      withAuth(async (client, { materialId }) => client.getMaterial(materialId)),
     )
 
     server.tool(

@@ -336,6 +336,10 @@ export class SuzuriClient {
     return this.request<GetMaterialsResponse>(endpoint)
   }
 
+  async getMaterial(materialId: number): Promise<SuzuriMaterial> {
+    return this.request<SuzuriMaterial>(`/materials/${materialId}`)
+  }
+
   async createMaterial(params: CreateMaterialParams): Promise<SuzuriMaterial> {
     return this.request<SuzuriMaterial>('/materials', {
       method: 'POST',
