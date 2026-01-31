@@ -126,10 +126,13 @@ const handler = createMcpHandler(
       'get_my_products',
       '認証ユーザーの商品一覧を取得します（軽量版: id, title, priceのみ）（要認証）',
       { ...paginationSchema },
-      withAuth(async (client, params) => {
-        const result = await client.getProducts(params)
-        return { items: result.products.map(toCompactProduct) }
-      }),
+      async (params: { limit?: number; offset?: number }, { authInfo }: AuthContext): Promise<ToolResponse> => {
+        if (!authInfo?.token) return AUTH_ERROR_RESPONSE
+        const client = new SuzuriClient(authInfo.token)
+        const userId = (authInfo as { extra?: { userId?: number } }).extra?.userId
+        const result = await client.getProducts({ ...params, userId })
+        return createJsonResponse({ items: result.products.map(toCompactProduct) })
+      },
     )
 
     server.tool(
@@ -193,10 +196,13 @@ const handler = createMcpHandler(
       'get_my_materials',
       '認証ユーザーの素材一覧を取得します（軽量版: id, titleのみ）（要認証）',
       { ...paginationSchema },
-      withAuth(async (client, params) => {
-        const result = await client.getMaterials(params)
-        return { items: result.materials.map(toCompactMaterial) }
-      }),
+      async (params: { limit?: number; offset?: number }, { authInfo }: AuthContext): Promise<ToolResponse> => {
+        if (!authInfo?.token) return AUTH_ERROR_RESPONSE
+        const client = new SuzuriClient(authInfo.token)
+        const userId = (authInfo as { extra?: { userId?: number } }).extra?.userId
+        const result = await client.getMaterials({ ...params, userId })
+        return createJsonResponse({ items: result.materials.map(toCompactMaterial) })
+      },
     )
 
     server.tool(
