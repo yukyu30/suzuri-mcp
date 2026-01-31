@@ -8,13 +8,19 @@ const handler = createMcpHandler(
     // ========== Items ==========
     server.tool(
       'get_items',
-      'SUZURIで取り扱っているアイテム（商品カテゴリ）一覧を取得します',
+      'SUZURIで取り扱っているアイテム（商品カテゴリ）一覧を取得します（要認証）',
       {
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
       },
-      async ({ limit, offset }) => {
-        const client = new SuzuriClient()
+      async ({ limit, offset }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getItems({ limit, offset })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -25,7 +31,7 @@ const handler = createMcpHandler(
     // ========== Products ==========
     server.tool(
       'get_products',
-      'SUZURIの商品一覧を取得します',
+      'SUZURIの商品一覧を取得します（要認証）',
       {
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
@@ -33,8 +39,14 @@ const handler = createMcpHandler(
         userName: z.string().optional().describe('ユーザー名で絞り込み'),
         itemId: z.number().int().optional().describe('アイテムIDで絞り込み'),
       },
-      async ({ limit, offset, userId, userName, itemId }) => {
-        const client = new SuzuriClient()
+      async ({ limit, offset, userId, userName, itemId }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getProducts({ limit, offset, userId, userName, itemId })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -44,12 +56,18 @@ const handler = createMcpHandler(
 
     server.tool(
       'get_product',
-      'SUZURIの商品詳細を取得します',
+      'SUZURIの商品詳細を取得します（要認証）',
       {
         productId: z.number().int().describe('商品ID'),
       },
-      async ({ productId }) => {
-        const client = new SuzuriClient()
+      async ({ productId }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getProduct(productId)
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -59,15 +77,21 @@ const handler = createMcpHandler(
 
     server.tool(
       'search_products',
-      'SUZURIの商品を検索します',
+      'SUZURIの商品を検索します（要認証）',
       {
         q: z.string().describe('検索キーワード'),
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
         itemId: z.number().int().optional().describe('アイテムIDで絞り込み'),
       },
-      async ({ q, limit, offset, itemId }) => {
-        const client = new SuzuriClient()
+      async ({ q, limit, offset, itemId }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.searchProducts({ q, limit, offset, itemId })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -77,13 +101,19 @@ const handler = createMcpHandler(
 
     server.tool(
       'get_on_sale_products',
-      'SUZURIのセール商品一覧を取得します',
+      'SUZURIのセール商品一覧を取得します（要認証）',
       {
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
       },
-      async ({ limit, offset }) => {
-        const client = new SuzuriClient()
+      async ({ limit, offset }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getOnSaleProducts({ limit, offset })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -116,14 +146,20 @@ const handler = createMcpHandler(
     // ========== Users ==========
     server.tool(
       'get_users',
-      'SUZURIのユーザー一覧を取得します',
+      'SUZURIのユーザー一覧を取得します（要認証）',
       {
         name: z.string().optional().describe('ユーザー名で検索'),
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
       },
-      async ({ name, limit, offset }) => {
-        const client = new SuzuriClient()
+      async ({ name, limit, offset }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getUsers({ name, limit, offset })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -133,12 +169,18 @@ const handler = createMcpHandler(
 
     server.tool(
       'get_user',
-      'SUZURIのユーザー詳細を取得します',
+      'SUZURIのユーザー詳細を取得します（要認証）',
       {
         userId: z.number().int().describe('ユーザーID'),
       },
-      async ({ userId }) => {
-        const client = new SuzuriClient()
+      async ({ userId }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getUser(userId)
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -168,14 +210,20 @@ const handler = createMcpHandler(
     // ========== Materials ==========
     server.tool(
       'get_materials',
-      'SUZURIの素材一覧を取得します',
+      'SUZURIの素材一覧を取得します（要認証）',
       {
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
         userId: z.number().int().optional().describe('ユーザーIDで絞り込み'),
       },
-      async ({ limit, offset, userId }) => {
-        const client = new SuzuriClient()
+      async ({ limit, offset, userId }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getMaterials({ limit, offset, userId })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -298,14 +346,20 @@ const handler = createMcpHandler(
     // ========== Favorites ==========
     server.tool(
       'get_product_favorites',
-      '商品のお気に入り（ズッキュン）一覧を取得します',
+      '商品のお気に入り（ズッキュン）一覧を取得します（要認証）',
       {
         productId: z.number().int().describe('商品ID'),
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
       },
-      async ({ productId, limit, offset }) => {
-        const client = new SuzuriClient()
+      async ({ productId, limit, offset }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getProductFavorites(productId, { limit, offset })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -315,14 +369,20 @@ const handler = createMcpHandler(
 
     server.tool(
       'get_user_favorites',
-      'ユーザーのお気に入り（ズッキュン）一覧を取得します',
+      'ユーザーのお気に入り（ズッキュン）一覧を取得します（要認証）',
       {
         userId: z.number().int().describe('ユーザーID'),
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
       },
-      async ({ userId, limit, offset }) => {
-        const client = new SuzuriClient()
+      async ({ userId, limit, offset }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getUserFavorites(userId, { limit, offset })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -377,15 +437,21 @@ const handler = createMcpHandler(
     // ========== Choices ==========
     server.tool(
       'get_choices',
-      'SUZURIのオモイデ一覧を取得します',
+      'SUZURIのオモイデ一覧を取得します（要認証）',
       {
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
         userId: z.number().int().optional().describe('ユーザーIDで絞り込み'),
         userName: z.string().optional().describe('ユーザー名で絞り込み'),
       },
-      async ({ limit, offset, userId, userName }) => {
-        const client = new SuzuriClient()
+      async ({ limit, offset, userId, userName }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getChoices({ limit, offset, userId, userName })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -395,12 +461,18 @@ const handler = createMcpHandler(
 
     server.tool(
       'get_choice',
-      'SUZURIのオモイデ詳細を取得します',
+      'SUZURIのオモイデ詳細を取得します（要認証）',
       {
         choiceId: z.number().int().describe('オモイデID'),
       },
-      async ({ choiceId }) => {
-        const client = new SuzuriClient()
+      async ({ choiceId }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getChoice(choiceId)
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
@@ -410,14 +482,20 @@ const handler = createMcpHandler(
 
     server.tool(
       'get_choice_products',
-      'SUZURIのオモイデに含まれる商品一覧を取得します',
+      'SUZURIのオモイデに含まれる商品一覧を取得します（要認証）',
       {
         choiceId: z.number().int().describe('オモイデID'),
         limit: z.number().int().min(1).max(100).optional().describe('取得件数（1-100）'),
         offset: z.number().int().min(0).optional().describe('オフセット'),
       },
-      async ({ choiceId, limit, offset }) => {
-        const client = new SuzuriClient()
+      async ({ choiceId, limit, offset }, { authInfo }) => {
+        if (!authInfo?.token) {
+          return {
+            content: [{ type: 'text', text: 'エラー: 認証が必要です' }],
+            isError: true,
+          }
+        }
+        const client = new SuzuriClient(authInfo.token)
         const result = await client.getChoiceProducts(choiceId, { limit, offset })
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
