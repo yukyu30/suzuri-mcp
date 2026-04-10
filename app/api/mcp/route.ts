@@ -10,7 +10,7 @@ const SUZURI_API_USER_ENDPOINT = 'https://suzuri.jp/api/v1/user'
 // 型定義
 type ToolContent = { type: 'text'; text: string }
 type ToolResponse = { content: ToolContent[]; isError?: boolean }
-type AuthContext = { authInfo?: { token?: string } }
+type AuthContext = { authInfo?: { token?: string; extra?: Record<string, unknown> } }
 
 // 共通スキーマ
 const paginationSchema = {
@@ -58,12 +58,48 @@ const withAuthText = <TParams>(
   }
 }
 
+// 認証ユーザーの情報（userId）を必要とするハンドラ用
+const withAuthMe = <TParams, TResult>(
+  handler: (client: SuzuriClient, userId: number, params: TParams) => Promise<TResult>
+) => {
+  return async (params: TParams, { authInfo }: AuthContext): Promise<ToolResponse> => {
+    if (!authInfo?.token) return AUTH_ERROR_RESPONSE
+    const userId = authInfo.extra?.userId
+    if (typeof userId !== 'number') {
+      return createErrorResponse('認証ユーザー情報を取得できませんでした')
+    }
+    const client = new SuzuriClient(authInfo.token)
+    const result = await handler(client, userId, params)
+    return createJsonResponse(result)
+  }
+}
+
 // レスポンス軽量化用のヘルパー関数
 const toCompactProduct = (p: SuzuriProduct) => ({ id: p.id, title: p.title, price: p.price })
 const toCompactUser = (u: SuzuriUser) => ({ id: u.id, name: u.name, displayName: u.displayName })
 const toCompactMaterial = (m: SuzuriMaterial) => ({ id: m.id, title: m.title })
 const toCompactChoice = (c: SuzuriChoice) => ({ id: c.id, title: c.title })
 const toCompactFavorite = (f: SuzuriFavorite) => ({ id: f.id, productId: f.productId, count: f.count })
+
+// 認証ユーザー自身の商品一覧を取得する
+export const fetchMyProducts = async (
+  client: SuzuriClient,
+  userId: number,
+  params: { limit?: number; offset?: number },
+) => {
+  const result = await client.getProducts({ ...params, userId })
+  return { items: result.products.map(toCompactProduct) }
+}
+
+// 認証ユーザー自身の素材一覧を取得する
+export const fetchMyMaterials = async (
+  client: SuzuriClient,
+  userId: number,
+  params: { limit?: number; offset?: number },
+) => {
+  const result = await client.getMaterials({ ...params, userId })
+  return { items: result.materials.map(toCompactMaterial) }
+}
 
 const handler = createMcpHandler(
   (server) => {
@@ -126,10 +162,7 @@ const handler = createMcpHandler(
       'get_my_products',
       '認証ユーザーの商品一覧を取得します（軽量版: id, title, priceのみ）（要認証）',
       { ...paginationSchema },
-      withAuth(async (client, params) => {
-        const result = await client.getProducts(params)
-        return { items: result.products.map(toCompactProduct) }
-      }),
+      withAuthMe((client, userId, params) => fetchMyProducts(client, userId, params)),
     )
 
     server.tool(
@@ -193,10 +226,7 @@ const handler = createMcpHandler(
       'get_my_materials',
       '認証ユーザーの素材一覧を取得します（軽量版: id, titleのみ）（要認証）',
       { ...paginationSchema },
-      withAuth(async (client, params) => {
-        const result = await client.getMaterials(params)
-        return { items: result.materials.map(toCompactMaterial) }
-      }),
+      withAuthMe((client, userId, params) => fetchMyMaterials(client, userId, params)),
     )
 
     server.tool(
