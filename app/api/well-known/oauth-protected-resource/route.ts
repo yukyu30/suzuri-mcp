@@ -6,10 +6,12 @@ export async function GET() {
     || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   // RFC 9728: OAuth 2.0 Protected Resource Metadata
-  // MCPクライアントに対して、このリソースの認可サーバーを通知
+  // authorization_servers は issuer URL (baseUrl) を入れる。
+  // MCP SDK は受け取った URL に /.well-known/oauth-authorization-server を
+  // 付けてメタデータを取りに来るため、メタデータURLを入れると二重パスで404になる。
   const metadata = {
     resource: `${baseUrl}/api/mcp`,
-    authorization_servers: [`${baseUrl}/.well-known/oauth-authorization-server`],
+    authorization_servers: [baseUrl],
     scopes_supported: ['read', 'write'],
     bearer_methods_supported: ['header'],
   }
