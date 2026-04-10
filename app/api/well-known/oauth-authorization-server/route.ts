@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { jsonResponse } from '@/lib/http-response'
 
 export async function GET() {
   // 本番環境では APP_URL を使用（VERCEL_URL はデプロイ固有のURL）
@@ -16,7 +16,7 @@ export async function GET() {
     scopes_supported: ['read', 'write'],
   }
 
-  return NextResponse.json(metadata, {
+  return jsonResponse(metadata, {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -25,7 +25,7 @@ export async function GET() {
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
+  return new Response(null, {
     status: 204,
     headers: {
       'Access-Control-Allow-Origin': '*',

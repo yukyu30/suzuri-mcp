@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { jsonResponse } from '@/lib/http-response'
 
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get('content-type') || ''
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
         body[key] = value
       })
     } catch {
-      return NextResponse.json(
+      return jsonResponse(
         { error: 'invalid_request', error_description: 'Unsupported content type' },
         { status: 400 }
       )
@@ -34,14 +35,14 @@ export async function POST(request: NextRequest) {
   const clientId = body.client_id
 
   if (grantType !== 'authorization_code') {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'unsupported_grant_type' },
       { status: 400 }
     )
   }
 
   if (!code || !redirectUri || !clientId) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'invalid_request', error_description: 'Missing required parameters' },
       { status: 400 }
     )
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   if (!suzuriClientId || !suzuriClientSecret) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'server_error', error_description: 'SUZURI credentials not configured' },
       { status: 500 }
     )
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text()
       console.error('SUZURI token error:', errorData)
-      return NextResponse.json(
+      return jsonResponse(
         { error: 'invalid_grant', error_description: 'Failed to exchange code with SUZURI' },
         { status: 400 }
       )
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     const tokenData = await tokenResponse.json()
 
-    return NextResponse.json({
+    return jsonResponse({
       access_token: tokenData.access_token,
       token_type: tokenData.token_type || 'Bearer',
       expires_in: tokenData.expires_in || 3600,
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Token exchange error:', error)
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'server_error', error_description: 'Failed to exchange token' },
       { status: 500 }
     )
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
+  return new Response(null, {
     status: 204,
     headers: {
       'Access-Control-Allow-Origin': '*',

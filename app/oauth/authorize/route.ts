@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { jsonResponse, redirectResponse } from '@/lib/http-response'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   const codeChallengeMethod = searchParams.get('code_challenge_method')
 
   if (!clientId || !redirectUri || responseType !== 'code') {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'invalid_request', error_description: 'Missing required parameters' },
       { status: 400 }
     )
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   // SUZURI OAuth認可エンドポイントにリダイレクト
   const suzuriClientId = process.env.SUZURI_CLIENT_ID
   if (!suzuriClientId) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'server_error', error_description: 'SUZURI_CLIENT_ID not configured' },
       { status: 500 }
     )
@@ -47,5 +48,5 @@ export async function GET(request: NextRequest) {
   suzuriAuthUrl.searchParams.set('scope', scope)
   suzuriAuthUrl.searchParams.set('state', encodedState)
 
-  return NextResponse.redirect(suzuriAuthUrl.toString())
+  return redirectResponse(suzuriAuthUrl.toString())
 }

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import crypto from 'crypto'
+import { jsonResponse } from '@/lib/http-response'
 
 // メモリ内ストレージ（本番環境ではRedis等を使用）
 const dynamicClients = new Map<string, {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     dynamicClients.set(clientId, clientInfo)
 
-    return NextResponse.json({
+    return jsonResponse({
       client_id: clientId,
       client_secret: clientSecret,
       client_id_issued_at: Math.floor(clientInfo.createdAt / 1000),
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Client registration error:', error)
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'invalid_client_metadata' },
       { status: 400 }
     )
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
+  return new Response(null, {
     status: 204,
     headers: {
       'Access-Control-Allow-Origin': '*',

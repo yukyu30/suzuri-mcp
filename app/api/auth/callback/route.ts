@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { exchangeCodeForToken } from '@/lib/suzuri-oauth'
+import { jsonResponse } from '@/lib/http-response'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -8,14 +9,14 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error')
 
   if (error) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: error, description: searchParams.get('error_description') },
       { status: 400 }
     )
   }
 
   if (!code) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'missing_code', description: '認可コードがありません' },
       { status: 400 }
     )
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
   const redirectUri = process.env.SUZURI_REDIRECT_URI
 
   if (!clientId || !clientSecret || !redirectUri) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'server_error', description: 'OAuth設定が不完全です' },
       { status: 500 }
     )
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
     // Claudeにトークンを返す
     // Claude.aiのauth_callbackにリダイレクトする場合は
     // そちらにトークンを渡す必要がある
-    return NextResponse.json({
+    return jsonResponse({
       access_token: tokenResponse.access_token,
       token_type: tokenResponse.token_type,
       expires_in: tokenResponse.expires_in,
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Token exchange error:', error)
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'token_error', description: 'トークン取得に失敗しました' },
       { status: 500 }
     )

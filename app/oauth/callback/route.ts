@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { jsonResponse, redirectResponse } from '@/lib/http-response'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -8,14 +9,14 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error')
 
   if (error) {
-    return NextResponse.json(
+    return jsonResponse(
       { error, error_description: searchParams.get('error_description') },
       { status: 400 }
     )
   }
 
   if (!suzuriCode || !encodedState) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'invalid_request', error_description: 'Missing code or state' },
       { status: 400 }
     )
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   try {
     mcpState = JSON.parse(Buffer.from(encodedState, 'base64url').toString())
   } catch {
-    return NextResponse.json(
+    return jsonResponse(
       { error: 'invalid_state', error_description: 'Failed to decode state' },
       { status: 400 }
     )
@@ -47,5 +48,5 @@ export async function GET(request: NextRequest) {
     redirectUrl.searchParams.set('state', mcpState.originalState)
   }
 
-  return NextResponse.redirect(redirectUrl.toString())
+  return redirectResponse(redirectUrl.toString())
 }
